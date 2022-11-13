@@ -1,8 +1,10 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <cstring>
 #include <string.h>
 #include <vector>
+#include <pthread.h>
 
 
 using namespace std;
@@ -11,14 +13,33 @@ void cargarips(string ruta, vector<string>& v);
 int contalineas(string ruta);
 void sacardatos(vector<string>& v);
 void imprimirdatos(string e,string r,string p,vector<string>& v);
+pthread_mutex_t mut;
+void *hacerping(void *args){
+    pthread_mutex_lock(&mut);
+    char * ip = (char *) args;
+    string comando="ping -q -c"+to_string(6)+" "+ip+"> .ping.txt";
+    system(comando.c_str());
+    pthread_mutex_unlock(&mut);
+}
 
 int main(int argc, char *argsv[]){    //en argsv[1] esta la ruta del archivo
     string ruta=argsv[1];
     int paquetes=stoi(argsv[2]);
+    int cantip=contalineas(ruta);
     vector<string> ips;
     cargarips(ruta,ips);
-    string comando="ping -q -c"+to_string(paquetes)+" "+ips[0]+"> .ping.txt";
-    system(comando.c_str());
+    pthread_t hilo[cantip];
+    
+    pthread_mutex_init(&mut,NULL);
+    for (int i = 0; i < cantip; i++)
+    {
+        char * url = (char *)ips.at(i).c_str();
+        pthread_create(&hilo[i],NULL,hacerping,(void *) url);
+        pthread_join(hilo[i],NULL);
+    }
+    pthread_mutex_destroy(&mut);    
+    
+    
     sacardatos(ips);
     
 }
@@ -97,5 +118,5 @@ void imprimirdatos(string e,string r,string p,vector<string>& v){
     
     cout<<"IP           Trans.      Rec.        Perd.       Estado \n";
     cout<<"─────────────────────────────────────────────────────── \n";
-    cout<<v[0]<<"       "+e+"          "+r+"           "+p+"           "+estado+"\n";
+    cout<<v[1]<<"       "+e+"          "+r+"           "+p+"           "+estado+"\n";
 }
