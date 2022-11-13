@@ -12,13 +12,23 @@ using namespace std;
 void cargarips(string ruta, vector<string>& v);
 int contalineas(string ruta);
 void sacardatos(vector<string>& v);
+string sacarip(string linea);
+string datos(string linea);
 void imprimirdatos(string e,string r,string p,vector<string>& v);
 pthread_mutex_t mut;
+
+
 void *hacerping(void *args){
     pthread_mutex_lock(&mut);
+    vector<string> res;
+    string dir,dat;
     char * ip = (char *) args;
     string comando="ping -q -c"+to_string(6)+" "+ip+"> .ping.txt";
     system(comando.c_str());
+    sacardatos(res);
+    dir=sacarip(res[0]);
+    dat=datos(res[1]);
+    
     pthread_mutex_unlock(&mut);
 }
 
@@ -37,10 +47,7 @@ int main(int argc, char *argsv[]){    //en argsv[1] esta la ruta del archivo
         pthread_create(&hilo[i],NULL,hacerping,(void *) url);
         pthread_join(hilo[i],NULL);
     }
-    pthread_mutex_destroy(&mut);    
-    
-    
-    sacardatos(ips);
+    pthread_mutex_destroy(&mut);
     
 }
 
@@ -91,18 +98,49 @@ void sacardatos(vector<string>& v){
     while (!archivo.eof())
     {
        getline(archivo,t);
+       if(t.find("PING") != string::npos){
+            //cout<<"linea buena \n "<<t;
+            v.push_back(t);
+       }
        if(t.find("packets") != string::npos){
             //cout<<"linea buena \n "<<t;
-            enviados=t.substr(0,1);
-            recibidos=t.substr(23,1);
-            perdidos=t.substr(35,1);
+            v.push_back(t);
        }
     }
     archivo.close();
     system("rm .ping.txt");
-    imprimirdatos(enviados,recibidos,perdidos,v);
+    
 
 
+}
+string sacarip(string linea){
+    size_t pos,posf;
+    string linea2;
+    string ip;
+    char * url = (char *)linea.c_str();
+    pos=strspn(url,"PING");
+    linea2=linea.substr(pos+1,linea.length());
+    posf=linea2.find(" (");
+    ip=linea2.substr(0,posf); 
+    return ip;
+}
+string datos(string linea){
+    size_t pos;
+    string linea2,linea3;
+    string env,rec,per;
+    char * url = (char *)linea.c_str();
+    pos=linea.find(" packets transmitted");
+    env=linea.substr(0,pos);
+    
+    linea2=linea.substr(pos+22,linea.length());
+    pos=linea2.find(" received");
+    rec=linea2.substr(0,pos);
+
+    linea3=linea2.substr(pos+11,linea2.length());
+    pos=linea3.find("% packet loss");
+    per=linea3.substr(0,pos);
+    return env+"+"+rec+"+"+per;
+    
 }
 void imprimirdatos(string e,string r,string p,vector<string>& v){
     string estado="UP";
