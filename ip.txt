@@ -1,2 +1,4 @@
 google.cl
 facebook.com
+192.164.25.1
+ubiobio.cl 

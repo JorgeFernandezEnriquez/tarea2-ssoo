@@ -8,14 +8,21 @@
 
 
 using namespace std;
+typedef struct Reporte
+{
+    string ip;
+    string datos;
+};
+
 
 void cargarips(string ruta, vector<string>& v);
 int contalineas(string ruta);
 void sacardatos(vector<string>& v);
 string sacarip(string linea);
 string datos(string linea);
-void imprimirdatos(string e,string r,string p,vector<string>& v);
+void imprimirdatos();
 pthread_mutex_t mut;
+vector<Reporte> reportes;
 
 
 void *hacerping(void *args){
@@ -28,6 +35,10 @@ void *hacerping(void *args){
     sacardatos(res);
     dir=sacarip(res[0]);
     dat=datos(res[1]);
+    Reporte rep;
+    rep.ip=dir;
+    rep.datos=dat;
+    reportes.push_back(rep);
     
     pthread_mutex_unlock(&mut);
 }
@@ -45,9 +56,11 @@ int main(int argc, char *argsv[]){    //en argsv[1] esta la ruta del archivo
     {
         char * url = (char *)ips.at(i).c_str();
         pthread_create(&hilo[i],NULL,hacerping,(void *) url);
+        cout<<"haciendo ping numero: "<<i+1<<endl;
         pthread_join(hilo[i],NULL);
     }
     pthread_mutex_destroy(&mut);
+    imprimirdatos();
     
 }
 
@@ -142,19 +155,27 @@ string datos(string linea){
     return env+"+"+rec+"+"+per;
     
 }
-void imprimirdatos(string e,string r,string p,vector<string>& v){
-    string estado="UP";
-    if (stoi(p)==1)
-    {
-        p=""+e;
-    }
-    
-    if (stoi(r)<=0)
-    {
-        estado="DOWN";
-    }
-    
+void imprimirdatos(){
     cout<<"IP           Trans.      Rec.        Perd.       Estado \n";
     cout<<"─────────────────────────────────────────────────────── \n";
-    cout<<v[1]<<"       "+e+"          "+r+"           "+p+"           "+estado+"\n";
+    for (int i = 0; i < reportes.size(); i++)
+    {   
+        string env,rec,per,aux;
+        string datos=reportes[i].datos;
+        size_t pos,pos2;
+        pos=datos.find("+");
+        env=datos.substr(0,pos);
+        aux=datos.substr(pos+1,datos.length());
+        pos=aux.find("+");
+        rec=aux.substr(0,pos);
+        per=aux.substr(pos+1,datos.length());
+        string estado="UP";
+        int perd=((stoi(env)*stoi(per))/100);
+        
+        if (stoi(rec)<=0)
+        {
+            estado="DOWN";
+        }
+        cout<<reportes[i].ip<<"       "+env+"          "+rec+"           "+to_string(perd)+"           "+estado+"\n";
+    }
 }
