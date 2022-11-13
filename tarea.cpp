@@ -21,16 +21,46 @@ void sacardatos(vector<string>& v);
 string sacarip(string linea);
 string datos(string linea);
 void imprimirdatos();
+void *hacerping(void *args);
 pthread_mutex_t mut;
 vector<Reporte> reportes;
 
 
+
+int main(int argc, char *argsv[]){    //en argsv[1] esta la ruta del archivo
+    string ruta=argsv[1];
+    string paquetes=argsv[2];
+    int cantip=contalineas(ruta);
+    vector<string> ips;
+    cargarips(ruta,ips);
+    pthread_t hilo[cantip];
+    
+    pthread_mutex_init(&mut,NULL);
+    for (int i = 0; i < cantip; i++)
+    {
+        string a=ips.at(i)+"+"+paquetes;
+        char * url = (char *)a.c_str();
+        pthread_create(&hilo[i],NULL,hacerping,(void *) url);
+        cout<<"haciendo ping numero: "<<i+1<<endl;
+        pthread_join(hilo[i],NULL);
+    }
+    pthread_mutex_destroy(&mut);
+    imprimirdatos();
+    
+}
+
 void *hacerping(void *args){
     pthread_mutex_lock(&mut);
     vector<string> res;
-    string dir,dat;
-    char * ip = (char *) args;
-    string comando="ping -q -c"+to_string(6)+" "+ip+"> .ping.txt";
+    string dir,dat,ip,paq;
+    char * datosping = (char *) args;
+    string d=datosping;
+    size_t pos;
+    pos=d.find("+");
+    ip=d.substr(0,pos);
+    paq=d.substr(pos,d.length());
+
+    string comando="ping -q -c"+paq+" "+ip+"> .ping.txt";
     system(comando.c_str());
     sacardatos(res);
     dir=sacarip(res[0]);
@@ -41,27 +71,6 @@ void *hacerping(void *args){
     reportes.push_back(rep);
     
     pthread_mutex_unlock(&mut);
-}
-
-int main(int argc, char *argsv[]){    //en argsv[1] esta la ruta del archivo
-    string ruta=argsv[1];
-    int paquetes=stoi(argsv[2]);
-    int cantip=contalineas(ruta);
-    vector<string> ips;
-    cargarips(ruta,ips);
-    pthread_t hilo[cantip];
-    
-    pthread_mutex_init(&mut,NULL);
-    for (int i = 0; i < cantip; i++)
-    {
-        char * url = (char *)ips.at(i).c_str();
-        pthread_create(&hilo[i],NULL,hacerping,(void *) url);
-        cout<<"haciendo ping numero: "<<i+1<<endl;
-        pthread_join(hilo[i],NULL);
-    }
-    pthread_mutex_destroy(&mut);
-    imprimirdatos();
-    
 }
 
 void cargarips(string ruta, vector<string>& v){
@@ -156,8 +165,8 @@ string datos(string linea){
     
 }
 void imprimirdatos(){
-    cout<<"IP           Trans.      Rec.        Perd.       Estado \n";
-    cout<<"─────────────────────────────────────────────────────── \n";
+    cout<<endl<<"IP                    Trans.      Rec.        Perd.       Estado \n";
+    cout<<"──────────────────────────────────────────────────────────────── \n";
     for (int i = 0; i < reportes.size(); i++)
     {   
         string env,rec,per,aux;
@@ -176,6 +185,12 @@ void imprimirdatos(){
         {
             estado="DOWN";
         }
-        cout<<reportes[i].ip<<"       "+env+"          "+rec+"           "+to_string(perd)+"           "+estado+"\n";
+        int dif=20-reportes[i].ip.length();
+        for (int j = 0; j < dif; j++)
+        {
+            reportes[i].ip=reportes[i].ip+" ";
+        }
+        
+        cout<<reportes[i].ip<<"    "+env+"          "+rec+"           "+to_string(perd)+"           "+estado+"\n";
     }
 }
